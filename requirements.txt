@@ -1,0 +1,2 @@
+yt-dlp>=2026.3.17
+notebooklm-py>=0.3.4
