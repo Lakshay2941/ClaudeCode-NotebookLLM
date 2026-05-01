@@ -169,7 +169,7 @@ class NotebookLMSkill:
         instructions: str | None = None,
         output_name: str = "infographic",
     ) -> Path | None:
-        """Generate an infographic and download it.
+        """Generate an infographic and download it as PNG.
 
         Args:
             notebook_id: Target notebook.
@@ -181,7 +181,7 @@ class NotebookLMSkill:
             output_name: Base filename (without extension) for the download.
 
         Returns:
-            Path to the downloaded file, or None on failure.
+            Path to the downloaded PNG, or None on failure.
         """
         assert self._client
 
@@ -198,10 +198,17 @@ class NotebookLMSkill:
             instructions=instructions,
         )
         print(f"  Waiting for completion (task_id={status.task_id})…")
-        final = await self._client.artifacts.wait_for_completion(
+        await self._client.artifacts.wait_for_completion(
             notebook_id, status.task_id, timeout=300.0
         )
-        return await self._download_artifact(notebook_id, final, output_name)
+        dest = str(OUTPUT_DIR / f"{output_name}.png")
+        try:
+            saved = await self._client.artifacts.download_infographic(notebook_id, dest)
+            print(f"  Saved infographic → {saved}")
+            return Path(saved)
+        except Exception as exc:
+            print(f"  WARNING: could not download infographic: {exc}", file=sys.stderr)
+            return None
 
     async def generate_slide_deck(
         self,
@@ -210,7 +217,7 @@ class NotebookLMSkill:
         instructions: str | None = None,
         output_name: str = "slides",
     ) -> Path | None:
-        """Generate a slide deck and download it."""
+        """Generate a slide deck and download it as PDF."""
         assert self._client
 
         fmt_enum = SlideDeckFormat[slide_format.upper()]
@@ -221,10 +228,19 @@ class NotebookLMSkill:
             instructions=instructions,
         )
         print(f"  Waiting for completion (task_id={status.task_id})…")
-        final = await self._client.artifacts.wait_for_completion(
+        await self._client.artifacts.wait_for_completion(
             notebook_id, status.task_id, timeout=300.0
         )
-        return await self._download_artifact(notebook_id, final, output_name)
+        dest = str(OUTPUT_DIR / f"{output_name}.pdf")
+        try:
+            saved = await self._client.artifacts.download_slide_deck(
+                notebook_id, dest, output_format="pdf"
+            )
+            print(f"  Saved slide deck → {saved}")
+            return Path(saved)
+        except Exception as exc:
+            print(f"  WARNING: could not download slide deck: {exc}", file=sys.stderr)
+            return None
 
     async def generate_flashcards(
         self,
@@ -232,7 +248,7 @@ class NotebookLMSkill:
         instructions: str | None = None,
         output_name: str = "flashcards",
     ) -> Path | None:
-        """Generate flashcards and download them."""
+        """Generate flashcards and download them as JSON."""
         assert self._client
 
         print("Generating flashcards…")
@@ -241,10 +257,17 @@ class NotebookLMSkill:
             instructions=instructions,
         )
         print(f"  Waiting for completion (task_id={status.task_id})…")
-        final = await self._client.artifacts.wait_for_completion(
+        await self._client.artifacts.wait_for_completion(
             notebook_id, status.task_id, timeout=300.0
         )
-        return await self._download_artifact(notebook_id, final, output_name)
+        dest = str(OUTPUT_DIR / f"{output_name}.json")
+        try:
+            saved = await self._client.artifacts.download_flashcards(notebook_id, dest)
+            print(f"  Saved flashcards → {saved}")
+            return Path(saved)
+        except Exception as exc:
+            print(f"  WARNING: could not download flashcards: {exc}", file=sys.stderr)
+            return None
 
     async def generate_report(
         self,
@@ -253,7 +276,7 @@ class NotebookLMSkill:
         custom_prompt: str | None = None,
         output_name: str = "report",
     ) -> Path | None:
-        """Generate a report (briefing doc, study guide, blog post, or custom)."""
+        """Generate a report and download it as markdown."""
         assert self._client
 
         fmt_map = {
@@ -270,30 +293,16 @@ class NotebookLMSkill:
             custom_prompt=custom_prompt,
         )
         print(f"  Waiting for completion (task_id={status.task_id})…")
-        final = await self._client.artifacts.wait_for_completion(
+        await self._client.artifacts.wait_for_completion(
             notebook_id, status.task_id, timeout=300.0
         )
-        return await self._download_artifact(notebook_id, final, output_name)
-
-    # ------------------------------------------------------------------
-    # Internal helpers
-    # ------------------------------------------------------------------
-
-    async def _download_artifact(
-        self, notebook_id: str, status: GenerationStatus, name: str
-    ) -> Path | None:
-        assert self._client
-        if not getattr(status, "completed", False):
-            print(f"  WARNING: artifact did not complete — status: {status}", file=sys.stderr)
-            return None
+        dest = str(OUTPUT_DIR / f"{output_name}.md")
         try:
-            artifact = await self._client.artifacts.get(notebook_id, status.task_id)
-            dest = OUTPUT_DIR / name
-            saved = await self._client.artifacts.download(artifact, dest)
-            print(f"  Saved artifact → {saved}")
+            saved = await self._client.artifacts.download_report(notebook_id, dest)
+            print(f"  Saved report → {saved}")
             return Path(saved)
         except Exception as exc:
-            print(f"  WARNING: could not download artifact: {exc}", file=sys.stderr)
+            print(f"  WARNING: could not download report: {exc}", file=sys.stderr)
             return None
 
 
