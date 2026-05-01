@@ -79,14 +79,18 @@ class NotebookLMSkill:
 
     def __init__(self) -> None:
         self._client: NotebookLMClient | None = None
+        self._raw_client: NotebookLMClient | None = None
 
     async def __aenter__(self) -> "NotebookLMSkill":
-        self._client = await NotebookLMClient.from_storage().__aenter__()
+        # from_storage() is async — await it to get the client instance,
+        # then separately enter its async context manager.
+        self._raw_client = await NotebookLMClient.from_storage()
+        self._client = await self._raw_client.__aenter__()
         return self
 
     async def __aexit__(self, *args: Any) -> None:
-        if self._client:
-            await self._client.__aexit__(*args)
+        if self._raw_client:
+            await self._raw_client.__aexit__(*args)
 
     # ------------------------------------------------------------------
     # Notebook management
